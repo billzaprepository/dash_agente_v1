@@ -1,0 +1,3586 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Leads</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-button.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .loading-spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 9999px;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .badge-default { background-color: #3b82f6; color: white; }
+        .badge-secondary { background-color: #6b7280; color: white; }
+        .badge-destructive { background-color: #ef4444; color: white; }
+        .badge-outline { border: 1px solid #d1d5db; color: #374151; }
+        .badge-success { background-color: #10b981; color: white; }
+        .badge-warning { background-color: #f59e0b; color: white; }
+        .card {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+        .btn-outline {
+            background-color: transparent;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        .btn-outline:hover {
+            background-color: #f9fafb;
+        }
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+        .btn-danger-outline {
+            background-color: transparent;
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+        .btn-danger-outline:hover {
+            background-color: #fef2f2;
+        }
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        .input {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+        }
+        .input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            background-color: white;
+        }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .table th {
+            font-weight: 600;
+            color: #374151;
+            background-color: #f9fafb;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 0.5rem;
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #3b82f6;
+            transition: width 0.3s ease;
+        }
+        /* Chart container fixes */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        .chart-container canvas {
+            max-height: 300px !important;
+        }
+        .chart-small {
+            height: 250px;
+        }
+        .chart-medium {
+            height: 350px;
+        }
+        /* Responsive chart adjustments */
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 250px;
+            }
+            .chart-container canvas {
+                max-height: 250px !important;
+            }
+        }
+        /* Agendamentos styles */
+        .agenda-card {
+            border-left: 4px solid #3b82f6;
+            transition: all 0.2s;
+        }
+        .agenda-card:hover {
+            box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+        }
+        .agenda-today {
+            border-left-color: #10b981;
+            background-color: #f0fdf4;
+        }
+        .agenda-tomorrow {
+            border-left-color: #f59e0b;
+            background-color: #fffbeb;
+        }
+        .agenda-past {
+            border-left-color: #6b7280;
+            background-color: #f9fafb;
+            opacity: 0.8;
+        }
+        .time-badge {
+            background-color: #eff6ff;
+            color: #1d4ed8;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .calendar-view {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background-color: #e5e7eb;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        .calendar-day {
+            background-color: white;
+            padding: 0.5rem;
+            min-height: 80px;
+            position: relative;
+        }
+        .calendar-day.today {
+            background-color: #dbeafe;
+        }
+        .calendar-event {
+            background-color: #3b82f6;
+            color: white;
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+            font-size: 0.625rem;
+            margin-bottom: 0.125rem;
+            cursor: pointer;
+        }
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-content-large {
+            max-width: 800px;
+        }
+        /* Checkbox styles */
+        .checkbox {
+            width: 1rem;
+            height: 1rem;
+            cursor: pointer;
+        }
+        /* Bulk actions */
+        .bulk-actions {
+            background-color: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .bulk-actions.show {
+            display: block;
+        }
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            color: white;
+            font-weight: 500;
+            z-index: 1001;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        .toast.show {
+            transform: translateX(0);
+        }
+        .toast.success {
+            background-color: #10b981;
+        }
+        .toast.error {
+            background-color: #ef4444;
+        }
+        .toast.warning {
+            background-color: #f59e0b;
+        }
+        /* Danger zone styles */
+        .danger-zone {
+            border: 2px solid #ef4444;
+            border-radius: 0.5rem;
+            background-color: #fef2f2;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        .danger-zone h3 {
+            color: #dc2626;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .danger-zone p {
+            color: #7f1d1d;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+        /* Prompt card styles */
+        .prompt-card {
+            border-left: 4px solid #8b5cf6;
+            transition: all 0.2s;
+        }
+        .prompt-card:hover {
+            box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+        }
+        .prompt-card.inactive {
+            border-left-color: #6b7280;
+            opacity: 0.7;
+        }
+        .prompt-content {
+            max-height: 100px;
+            overflow: hidden;
+            position: relative;
+        }
+        .prompt-content.expanded {
+            max-height: none;
+        }
+        .prompt-variable {
+            background-color: #fef3c7;
+            color: #92400e;
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .priority-high { border-left-color: #ef4444; }
+        .priority-medium { border-left-color: #f59e0b; }
+        .priority-low { border-left-color: #10b981; }
+        .textarea {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            resize: vertical;
+            min-height: 100px;
+        }
+        .textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        /* Error display styles */
+        .error-details {
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        .error-details pre {
+            background-color: #fee2e2;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+<div class="min-h-screen p-4 md:p-8">
+     Header 
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Dashboard de Leads</h1>
+        <div class="flex items-center gap-4">
+            <button id="refreshBtn" class="btn btn-primary">
+                <span id="refreshIcon">🔄</span>
+                Atualizar
+            </button>
+            <span id="lastUpdate" class="text-sm text-gray-500"></span>
+        </div>
+    </div>
+
+     Loading State 
+    <div id="loadingState" class="flex items-center justify-center h-64">
+        <div class="text-center">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p class="text-gray-600">Carregando dados...</p>
+        </div>
+    </div>
+
+     Error State 
+    <div id="errorState" class="hidden">
+        <div class="card p-6 mb-6">
+            <div class="flex items-center justify-center h-64">
+                <div class="text-center">
+                    <div class="text-red-500 text-4xl mb-4">⚠️</div>
+                    <p class="text-red-600 font-medium mb-2">Erro ao carregar dados</p>
+                    <p id="errorMessage" class="text-gray-500 text-sm mb-4"></p>
+                    <button onclick="fetchAllData()" class="btn btn-primary">
+                        Tentar novamente
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+         Error Details 
+        <div id="errorDetails" class="error-details hidden">
+            <h3 class="text-red-800 font-semibold mb-2">Detalhes do Erro:</h3>
+            <div class="space-y-2">
+                <div>
+                    <strong>Endpoint:</strong> <span id="errorEndpoint" class="font-mono text-sm"></span>
+                </div>
+                <div>
+                    <strong>Status:</strong> <span id="errorStatus" class="font-mono text-sm"></span>
+                </div>
+                <div>
+                    <strong>Resposta:</strong>
+                    <pre id="errorResponse" class="mt-1"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+     Main Content 
+    <div id="mainContent" class="hidden">
+         Tabs 
+        <div class="mb-6">
+            <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg overflow-x-auto">
+                <button class="tab-button active px-4 py-2 rounded-md transition-colors whitespace-nowrap" onclick="showTab('overview')">
+                    Visão Geral
+                </button>
+                <button class="tab-button px-4 py-2 rounded-md transition-colors whitespace-nowrap" onclick="showTab('leads')">
+                    Gerenciar Leads
+                </button>
+                <button class="tab-button px-4 py-2 rounded-md transition-colors whitespace-nowrap" onclick="showTab('prompts')">
+                    🤖 Prompts IA
+                </button>
+                <button class="tab-button px-4 py-2 rounded-md transition-colors whitespace-nowrap" onclick="showTab('agendamentos')">
+                    📅 Agendamentos
+                </button>
+                <button class="tab-button px-4 py-2 rounded-md transition-colors whitespace-nowrap" onclick="showTab('analytics')">
+                    Analytics
+                </button>
+            </div>
+        </div>
+
+         Overview Tab 
+        <div id="overview" class="tab-content active">
+             Metrics Cards 
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-6">
+                <div class="card p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Total de Leads</p>
+                            <p id="totalLeads" class="text-2xl font-bold text-gray-900">0</p>
+                            <p class="text-xs text-gray-500">+12% em relação ao mês anterior</p>
+                        </div>
+                        <div class="text-gray-400">👥</div>
+                    </div>
+                </div>
+                <div class="card p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Taxa de Conversão</p>
+                            <p id="conversionRate" class="text-2xl font-bold text-gray-900">0%</p>
+                            <p id="conversionText" class="text-xs text-gray-500">0 de 0 leads convertidos</p>
+                        </div>
+                        <div class="text-gray-400">🎯</div>
+                    </div>
+                </div>
+                <div class="card p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Com Telefone</p>
+                            <p id="withPhone" class="text-2xl font-bold text-gray-900">0</p>
+                            <p id="phonePercentage" class="text-xs text-gray-500">0% do total</p>
+                        </div>
+                        <div class="text-gray-400">📱</div>
+                    </div>
+                </div>
+                <div class="card p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Com Email</p>
+                            <p id="withEmail" class="text-2xl font-bold text-gray-900">0</p>
+                            <p id="emailPercentage" class="text-xs text-gray-500">0% do total</p>
+                        </div>
+                        <div class="text-gray-400">📧</div>
+                    </div>
+                </div>
+                <div class="card p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Agendamentos</p>
+                            <p id="totalScheduled" class="text-2xl font-bold text-gray-900">0</p>
+                            <p class="text-xs text-gray-500">Reuniões agendadas</p>
+                        </div>
+                        <div class="text-gray-400">📅</div>
+                    </div>
+                </div>
+            </div>
+
+             Charts 
+            <div class="grid gap-6 lg:grid-cols-7">
+                <div class="card p-6 lg:col-span-4">
+                    <h3 class="text-lg font-semibold mb-4">Leads por Dia</h3>
+                    <div class="chart-container">
+                        <canvas id="dailyChart"></canvas>
+                    </div>
+                </div>
+                <div class="card p-6 lg:col-span-3">
+                    <h3 class="text-lg font-semibold mb-4">Funil de Vendas</h3>
+                    <div class="chart-container chart-small">
+                        <canvas id="funnelChart"></canvas>
+                    </div>
+                    <div id="funnelLegend" class="mt-4 space-y-2">
+                         Legend will be populated here 
+                    </div>
+                </div>
+            </div>
+        </div>
+
+         Leads Tab 
+        <div id="leads" class="tab-content">
+             Filters 
+            <div class="card p-6 mb-6">
+                <h3 class="text-lg font-semibold mb-4">Filtros</h3>
+                <div class="grid gap-4 md:grid-cols-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Buscar</label>
+                        <input id="searchInput" type="text" placeholder="Nome, telefone ou email..." class="input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Status</label>
+                        <select id="statusFilter" class="select">
+                            <option value="all">Todos os status</option>
+                            <option value="Em andamento">Em andamento</option>
+                            <option value="Convertido">Convertido</option>
+                            <option value="Perdido">Perdido</option>
+                            <option value="Qualificado">Qualificado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Origem</label>
+                        <select id="originFilter" class="select">
+                            <option value="all">Todas as origens</option>
+                            <option value="WhatsApp">WhatsApp</option>
+                            <option value="Instagram">Instagram</option>
+                            <option value="Facebook">Facebook</option>
+                            <option value="Site">Site</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Período</label>
+                        <select id="dateFilter" class="select">
+                            <option value="all">Todos os períodos</option>
+                            <option value="today">Hoje</option>
+                            <option value="yesterday">Ontem</option>
+                            <option value="last7Days">Últimos 7 dias</option>
+                            <option value="last30Days">Últimos 30 dias</option>
+                            <option value="thisMonth">Este mês</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <button onclick="clearFilters()" class="btn btn-outline">
+                        Limpar filtros
+                    </button>
+                    <span id="filterResults" class="ml-4 text-sm text-gray-600"></span>
+                </div>
+            </div>
+
+             Bulk Actions 
+            <div id="bulkActions" class="bulk-actions">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <span id="selectedCount" class="font-medium">0 leads selecionados</span>
+                        <button onclick="selectAllLeads()" class="btn btn-outline btn-sm">
+                            Selecionar Todos
+                        </button>
+                        <button onclick="deselectAllLeads()" class="btn btn-outline btn-sm">
+                            Desmarcar Todos
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="bulkDeleteLeads()" class="btn btn-danger btn-sm">
+                            🗑️ Excluir Selecionados
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+             Leads Table 
+            <div class="card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">Lista de Leads</h3>
+                    <div class="flex items-center gap-2">
+                        <label class="flex items-center gap-2 text-sm">
+                            <input type="checkbox" id="selectAllCheckbox" class="checkbox" onchange="toggleSelectAll()">
+                            Selecionar todos
+                        </label>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th width="50">
+                                    <input type="checkbox" class="checkbox" id="headerCheckbox" onchange="toggleSelectAll()">
+                                </th>
+                                <th>Nome</th>
+                                <th>Telefone</th>
+                                <th>Email</th>
+                                <th>Origem</th>
+                                <th>Status</th>
+                                <th>Etapa</th>
+                                <th>Pontuação</th>
+                                <th>Agendamento</th>
+                                <th>Duplicatas</th>
+                                <th width="100">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leadsTableBody">
+                             Leads will be populated here 
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+             Danger Zone 
+            <div class="danger-zone">
+                <h3>⚠️ Zona de Perigo</h3>
+                <p>
+                    <strong>Atenção:</strong> As ações abaixo são irreversíveis e irão excluir permanentemente todos os dados.
+                    Use com extrema cautela!
+                </p>
+                <button onclick="deleteAllLeads()" class="btn btn-danger-outline">
+                    🗑️ Excluir TODOS os Leads
+                </button>
+            </div>
+        </div>
+
+         Prompts Tab 
+        <div id="prompts" class="tab-content">
+             Prompts Header 
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900">Gerenciar Prompts IA</h2>
+                    <p class="text-gray-600">Configure e gerencie os prompts dos agentes de IA</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="testPromptsEndpoint()" class="btn btn-outline">
+                        🔧 Testar Endpoint
+                    </button>
+                    <button onclick="exportPrompts()" class="btn btn-outline">
+                        📤 Exportar
+                    </button>
+                    <button onclick="openPromptModal()" class="btn btn-primary">
+                        ➕ Novo Prompt
+                    </button>
+                </div>
+            </div>
+
+             Prompts Filters 
+            <div class="card p-6 mb-6">
+                <h3 class="text-lg font-semibold mb-4">Filtros de Prompts</h3>
+                <div class="grid gap-4 md:grid-cols-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Buscar</label>
+                        <input id="promptSearchInput" type="text" placeholder="Título ou conteúdo..." class="input">
+                    </div>
+                    <div>
+                        <label for="promptCategoria" class="block text-sm font-medium mb-2">Categoria</label>
+                        <select id="promptCategoryFilter" class="select">
+                            <option value="all">Todas as categorias</option>
+                            <option value="Atendimento">Atendimento</option>
+                            <option value="Vendas">Vendas</option>
+                            <option value="Suporte">Suporte</option>
+                            <option value="Qualificação">Qualificação</option>
+                            <option value="Follow-up">Follow-up</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="promptStatus" class="block text-sm font-medium mb-2">Status</label>
+                        <select id="promptStatusFilter" class="select">
+                            <option value="all">Todos os status</option>
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="clearPromptFilters()" class="btn btn-outline w-full">
+                            Limpar filtros
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <span id="promptFilterResults" class="text-sm text-gray-600"></span>
+                </div>
+            </div>
+
+             Prompts Summary 
+            <div class="grid gap-4 md:grid-cols-4 mb-6">
+                <div class="card p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                            <span class="text-purple-600 font-bold">🤖</span>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Total</p>
+                            <p id="promptsTotal" class="text-xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                            <span class="text-green-600 font-bold">✅</span>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Ativos</p>
+                            <p id="promptsActive" class="text-xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                            <span class="text-gray-600 font-bold">⏸️</span>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Inativos</p>
+                            <p id="promptsInactive" class="text-xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span class="text-blue-600 font-bold">🔥</span>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Alta Prioridade</p>
+                            <p id="promptsHighPriority" class="text-xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+             Prompts Grid 
+            <div id="promptsGrid" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                 Prompts will be populated here 
+            </div>
+        </div>
+
+         Agendamentos Tab 
+        <div id="agendamentos" class="tab-content">
+             Agendamentos Header 
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900">Reuniões Agendadas</h2>
+                    <p class="text-gray-600">Gerencie todos os agendamentos de leads</p>
+                </div>
+                <div class="flex gap-2">
+                    <button id="viewListBtn" class="btn btn-primary" onclick="toggleAgendaView('list')">
+                        📋 Lista
+                    </button>
+                    <button id="viewCalendarBtn" class="btn btn-outline" onclick="toggleAgendaView('calendar')">
+                        📅 Calendário
+                    </button>
+                </div>
+            </div>
+
+             Agendamentos Filters 
+            <div class="card p-6 mb-6">
+                <h3 class="text-lg font-semibold mb-4">Filtros de Agendamentos</h3>
+                <div class="grid gap-4 md:grid-cols-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Buscar</label>
+                        <input id="agendaSearchInput" type="text" placeholder="Nome ou email..." class="input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Período</label>
+                        <select id="agendaDateFilter" class="select">
+                            <option value="all">Todos os períodos</option>
+                            <option value="today">Hoje</option>
+                            <option value="tomorrow">Amanhã</option>
+                            <option value="thisWeek">Esta semana</option>
+                            <option value="nextWeek">Próxima semana</option>
+                            <option value="thisMonth">Este mês</option>
+                            <option value="past">Passados</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Status do Lead</label>
+                        <select id="agendaStatusFilter" class="select">
+                            <option value="all">Todos os status</option>
+                            <option value="Em andamento">Em andamento</option>
+                            <option value="Convertido">Convertido</option>
+                            <option value="Perdido">Perdido</option>
+                            <option value="Qualificado">Qualificado</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="clearAgendaFilters()" class="btn btn-outline w-full">
+                            Limpar filtros
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <span id="agendaFilterResults" class="text-sm text-gray-600"></span>
+                </div>
+            </div>
+
+             Agendamentos Summary 
+            <div class="grid gap-4 md:grid-cols-4 mb-6">
+                <div class="card p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                            <span class="text-green-600 font-bold">📅</span>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Hoje</p>
+                            <p id="agendaToday" class="text-xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                            <span class="text-yellow-600 font-bold">⏰</span>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Amanhã</p>
+                            <p id="agendaTomorrow" class="text-xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span class="text-blue-600 font-bold">📊</span>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Esta Semana</p>
+                            <p id="agendaThisWeek" class="text-xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                            <span class="text-purple-600 font-bold">📈</span>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Total</p>
+                            <p id="agendaTotal" class="text-xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+             List View 
+            <div id="agendaListView" class="space-y-4">
+                 Agendamentos will be populated here 
+            </div>
+
+             Calendar View 
+            <div id="agendaCalendarView" class="hidden">
+                <div class="card p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold">Calendário de Agendamentos</h3>
+                        <div class="flex items-center gap-2">
+                            <button onclick="changeMonth(-1)" class="btn btn-outline">‹</button>
+                            <span id="currentMonth" class="font-medium px-4"></span>
+                            <button onclick="changeMonth(1)" class="btn btn-outline">›</button>
+                        </div>
+                    </div>
+                    <div class="calendar-view" id="calendarGrid">
+                         Calendar will be populated here 
+                    </div>
+                </div>
+            </div>
+        </div>
+
+         Analytics Tab 
+        <div id="analytics" class="tab-content">
+            <div class="grid gap-6 lg:grid-cols-2">
+                <div class="card p-6">
+                    <h3 class="text-lg font-semibold mb-4">Performance por Canal</h3>
+                    <div class="chart-container chart-medium">
+                        <canvas id="channelChart"></canvas>
+                    </div>
+                </div>
+                <div class="card p-6">
+                    <h3 class="text-lg font-semibold mb-4">Estatísticas de Contato</h3>
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="text-center p-4 bg-blue-50 rounded-lg">
+                            <div id="statsPhone" class="text-2xl font-bold text-blue-600">0</div>
+                            <div class="text-sm text-blue-600">Com Telefone</div>
+                        </div>
+                        <div class="text-center p-4 bg-green-50 rounded-lg">
+                            <div id="statsEmail" class="text-2xl font-bold text-green-600">0</div>
+                            <div class="text-sm text-green-600">Com Email</div>
+                        </div>
+                        <div class="text-center p-4 bg-purple-50 rounded-lg">
+                            <div id="statsBoth" class="text-2xl font-bold text-purple-600">0</div>
+                            <div class="text-sm text-purple-600">Com Ambos</div>
+                        </div>
+                        <div class="text-center p-4 bg-red-50 rounded-lg">
+                            <div id="statsNeither" class="text-2xl font-bold text-red-600">0</div>
+                            <div class="text-sm text-red-600">Sem Contato</div>
+                        </div>
+                    </div>
+                     Contact Quality Chart 
+                    <div class="chart-container chart-small">
+                        <canvas id="contactChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+ Delete Confirmation Modal 
+<div id="deleteModal" class="modal">
+    <div class="modal-content">
+        <h3 class="text-lg font-semibold mb-4">Confirmar Exclusão</h3>
+        <div id="deleteModalContent">
+             Content will be populated dynamically 
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+            <button onclick="closeDeleteModal()" class="btn btn-outline">
+                Cancelar
+            </button>
+            <button id="confirmDeleteBtn" class="btn btn-danger">
+                🗑️ Confirmar Exclusão
+            </button>
+        </div>
+    </div>
+</div>
+
+ Edit Lead Modal 
+<div id="editLeadModal" class="modal">
+    <div class="modal-content">
+        <h3 class="text-lg font-semibold mb-4">Editar Lead</h3>
+        <form id="editLeadForm">
+            <input type="hidden" id="editLeadId">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="editNomeWpp" class="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                    <input type="text" id="editNomeWpp" class="input" placeholder="Nome do Lead">
+                </div>
+                <div>
+                    <label for="editTelefone" class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                    <input type="text" id="editTelefone" class="input" placeholder="Telefone (ex: 5511987654321)">
+                </div>
+                <div>
+                    <label for="editEmail" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="editEmail" class="input" placeholder="email@exemplo.com">
+                </div>
+                <div>
+                    <label for="editOrigemLead" class="block text-sm font-medium text-gray-700 mb-1">Origem</label>
+                    <select id="editOrigemLead" class="select">
+                        <option value="">Selecione</option>
+                        <option value="WhatsApp">WhatsApp</option>
+                        <option value="Instagram">Instagram</option>
+                        <option value="Facebook">Facebook</option>
+                        <option value="Site">Site</option>
+                        <option value="Outro">Outro</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="editStatusAtendimento" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select id="editStatusAtendimento" class="select">
+                        <option value="">Selecione</option>
+                        <option value="Em andamento">Em andamento</option>
+                        <option value="Convertido">Convertido</option>
+                        <option value="Perdido">Perdido</option>
+                        <option value="Qualificado">Qualificado</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="editEtapaFunil" class="block text-sm font-medium text-gray-700 mb-1">Etapa do Funil</label>
+                    <select id="editEtapaFunil" class="select">
+                        <option value="">Selecione</option>
+                        <option value="Prospecção">Prospecção</option>
+                        <option value="Qualificação">Qualificação</option>
+                        <option value="Apresentação">Apresentação</option>
+                        <option value="Negociação">Negociação</option>
+                        <option value="Fechamento">Fechamento</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="editPontuacaoLead" class="block text-sm font-medium text-gray-700 mb-1">Pontuação (0-100)</label>
+                    <input type="number" id="editPontuacaoLead" class="input" min="0" max="100" placeholder="Ex: 75">
+                </div>
+                <div>
+                    <label for="editDataAgendamento" class="block text-sm font-medium text-gray-700 mb-1">Data Agendamento</label>
+                    <input type="datetime-local" id="editDataAgendamento" class="input">
+                </div>
+            </div>
+            <div>
+                <label for="editResumoAtendimento" class="block text-sm font-medium text-gray-700 mb-1">Resumo do Atendimento</label>
+                <textarea id="editResumoAtendimento" class="input h-24 resize-y" placeholder="Observações sobre o atendimento..."></textarea>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button type="button" onclick="closeEditModal()" class="btn btn-outline">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+ Prompt Modal 
+<div id="promptModal" class="modal">
+    <div class="modal-content modal-content-large">
+        <h3 id="promptModalTitle" class="text-lg font-semibold mb-4">Novo Prompt</h3>
+        <form id="promptForm">
+            <input type="hidden" id="promptId">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="promptTitulo" class="block text-sm font-medium text-gray-700 mb-1">Título *</label>
+                    <input type="text" id="promptTitulo" class="input" placeholder="Ex: Prompt de Qualificação" required>
+                </div>
+                <div>
+                    <label for="promptCategoria" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                    <select id="promptCategoria" class="select">
+                        <option value="Atendimento">Atendimento</option>
+                        <option value="Vendas">Vendas</option>
+                        <option value="Suporte">Suporte</option>
+                        <option value="Qualificação">Qualificação</option>
+                        <option value="Follow-up">Follow-up</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="promptStatus" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select id="promptStatus" class="select">
+                        <option value="ativo">Ativo</option>
+                        <option value="inativo">Inativo</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="promptPrioridade" class="block text-sm font-medium text-gray-700 mb-1">Prioridade</label>
+                    <select id="promptPrioridade" class="select">
+                        <option value="alta">Alta</option>
+                        <option value="media">Média</option>
+                        <option value="baixa">Baixa</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label for="promptDescricao" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                <input type="text" id="promptDescricao" class="input" placeholder="Breve descrição do prompt">
+            </div>
+            <div class="mb-4">
+                <label for="promptConteudo" class="block text-sm font-medium text-gray-700 mb-1">Conteúdo do Prompt *</label>
+                <textarea id="promptConteudo" class="textarea" rows="8" placeholder="Digite o conteúdo do prompt aqui. Use {variavel} para variáveis dinâmicas como {nome}, {email}, {telefone}, {origem}, {status}..." required></textarea>
+                <div class="flex justify-between items-center mt-2">
+                    <div class="text-sm text-gray-500">
+                        <span id="promptCharCount">0</span> caracteres
+                        | <span id="promptVariableCount">0</span> variáveis
+                    </div>
+                    <div class="text-xs text-gray-400">
+                        Variáveis disponíveis: {nome}, {email}, {telefone}, {origem}, {status}
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button type="button" onclick="closePromptModal()" class="btn btn-outline">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <span id="promptSaveText">Salvar Prompt</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+ Toast Notifications 
+<div id="toastContainer"></div>
+
+<script>
+    // Global variables
+    let allLeads = [];
+    let filteredLeads = [];
+    let scheduledLeads = [];
+    let filteredScheduledLeads = [];
+    let allPrompts = [];
+    let filteredPrompts = [];
+    let charts = {};
+    let currentCalendarDate = new Date();
+    let agendaView = 'list';
+    let selectedLeads = new Set();
+    let currentEditingLead = null;
+    let currentEditingPrompt = null;
+
+    // API Configuration
+    const API_URL = 'https://n8n.billzap.com.br/webhook/consulta-tabelas-agente-v8';
+    const DELETE_API_URL = 'https://n8n.billzap.com.br/webhook/deletar-dados-dash';
+    const EDIT_API_URL = 'https://n8n.billzap.com.br/webhook/editar-lead-dash';
+    
+    // APIs de Prompts
+    const PROMPTS_APIS = {
+        CONSULTAR: 'https://n8n.billzap.com.br/webhook/consulta-prompts',
+        CRIAR: 'https://n8n.billzap.com.br/webhook/criar-prompt',
+        EDITAR: 'https://n8n.billzap.com.br/webhook/editar-prompt',
+        DELETAR: 'https://n8n.billzap.com.br/webhook/deletar-prompt'
+    };
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Dashboard iniciando...');
+        setupEventListeners();
+        fetchAllData();
+    });
+
+    // Setup event listeners
+    function setupEventListeners() {
+        document.getElementById('refreshBtn').addEventListener('click', fetchAllData);
+
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+        document.getElementById('statusFilter').addEventListener('change', applyFilters);
+        document.getElementById('originFilter').addEventListener('change', applyFilters);
+        document.getElementById('dateFilter').addEventListener('change', applyFilters);
+
+        // Agenda filters
+        document.getElementById('agendaSearchInput').addEventListener('input', applyAgendaFilters);
+        document.getElementById('agendaDateFilter').addEventListener('change', applyAgendaFilters);
+        document.getElementById('agendaStatusFilter').addEventListener('change', applyAgendaFilters);
+
+        // Prompt filters
+        document.getElementById('promptSearchInput').addEventListener('input', applyPromptFilters);
+        document.getElementById('promptCategoryFilter').addEventListener('change', applyPromptFilters);
+        document.getElementById('promptStatusFilter').addEventListener('change', applyPromptFilters);
+
+        // Prompt content counter
+        document.getElementById('promptConteudo').addEventListener('input', updatePromptStats);
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            Object.values(charts).forEach(chart => {
+                if (chart && typeof chart.resize === 'function') {
+                    chart.resize();
+                }
+            });
+        });
+
+        // Close modals when clicking outside
+        document.getElementById('deleteModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDeleteModal();
+        });
+
+        document.getElementById('editLeadModal').addEventListener('click', function(e) {
+            if (e.target === this) closeEditModal();
+        });
+
+        document.getElementById('promptModal').addEventListener('click', function(e) {
+            if (e.target === this) closePromptModal();
+        });
+
+        // Form submissions
+        document.getElementById('editLeadForm').addEventListener('submit', saveEditedLead);
+        document.getElementById('promptForm').addEventListener('submit', savePrompt);
+    }
+
+    // Enhanced error handling function
+    function handleApiError(error, endpoint, response = null) {
+        console.error(`Erro na API ${endpoint}:`, error);
+        
+        // Show error details
+        document.getElementById('errorEndpoint').textContent = endpoint;
+        document.getElementById('errorStatus').textContent = response ? `${response.status} ${response.statusText}` : 'Network Error';
+        
+        if (response) {
+            response.text().then(text => {
+                document.getElementById('errorResponse').textContent = text.substring(0, 1000) + (text.length > 1000 ? '...' : '');
+                document.getElementById('errorDetails').classList.remove('hidden');
+            }).catch(() => {
+                document.getElementById('errorResponse').textContent = 'Não foi possível ler a resposta';
+                document.getElementById('errorDetails').classList.remove('hidden');
+            });
+        } else {
+            document.getElementById('errorResponse').textContent = error.message || 'Erro de conexão';
+            document.getElementById('errorDetails').classList.remove('hidden');
+        }
+    }
+
+    // Função para testar o endpoint de prompts com múltiplas estratégias
+    async function testPromptsEndpoint() {
+        console.log('=== INICIANDO TESTE COMPLETO DO ENDPOINT DE PROMPTS ===');
+        showToast('Testando endpoint de prompts...', 'warning');
+        
+        const testStrategies = [
+            {
+                name: 'POST com JSON vazio',
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            },
+            {
+                name: 'POST com timestamp',
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ timestamp: new Date().toISOString() })
+            },
+            {
+                name: 'POST com action',
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'consultar-prompts' })
+            },
+            {
+                name: 'POST sem Content-Type',
+                method: 'POST',
+                headers: {},
+                body: JSON.stringify({ test: true })
+            },
+            {
+                name: 'GET simples',
+                method: 'GET',
+                headers: {},
+                body: null
+            },
+            {
+                name: 'GET com query params',
+                method: 'GET',
+                headers: {},
+                body: null,
+                url: PROMPTS_APIS.CONSULTAR + '?action=consultar&timestamp=' + Date.now()
+            },
+            {
+                name: 'POST com FormData',
+                method: 'POST',
+                headers: {},
+                body: (() => {
+                    const formData = new FormData();
+                    formData.append('action', 'consultar-prompts');
+                    formData.append('timestamp', new Date().toISOString());
+                    return formData;
+                })()
+            },
+            {
+                name: 'POST com URLSearchParams',
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'consultar-prompts',
+                    timestamp: new Date().toISOString()
+                })
+            }
+        ];
+
+        let successCount = 0;
+        let results = [];
+
+        for (let i = 0; i < testStrategies.length; i++) {
+            const strategy = testStrategies[i];
+            console.log(`\n--- TESTE ${i + 1}: ${strategy.name} ---`);
+            
+            try {
+                const url = strategy.url || PROMPTS_APIS.CONSULTAR;
+                const options = {
+                    method: strategy.method,
+                    headers: {
+                        'Accept': 'application/json',
+                        'User-Agent': 'Dashboard-Test/1.0',
+                        ...strategy.headers
+                    }
+                };
+
+                if (strategy.body && strategy.method !== 'GET') {
+                    options.body = strategy.body;
+                }
+
+                console.log('URL:', url);
+                console.log('Método:', strategy.method);
+                console.log('Headers:', options.headers);
+                console.log('Body:', strategy.body);
+
+                const startTime = Date.now();
+                const response = await fetch(url, options);
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+
+                console.log(`Status: ${response.status}`);
+                console.log(`Tempo: ${duration}ms`);
+                console.log('Headers da resposta:', Object.fromEntries(response.headers.entries()));
+
+                let responseData = '';
+                try {
+                    responseData = await response.text();
+                    console.log('Resposta (primeiros 200 chars):', responseData.substring(0, 200));
+                } catch (e) {
+                    console.log('Erro ao ler resposta:', e.message);
+                }
+
+                const result = {
+                    strategy: strategy.name,
+                    status: response.status,
+                    ok: response.ok,
+                    duration: duration,
+                    responseSize: responseData.length,
+                    contentType: response.headers.get('content-type'),
+                    success: response.ok && responseData.length > 0
+                };
+
+                results.push(result);
+
+                if (result.success) {
+                    successCount++;
+                    console.log('✅ SUCESSO!');
+                } else {
+                    console.log('❌ FALHOU');
+                }
+
+                // Aguardar um pouco entre as requisições
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+            } catch (error) {
+                console.error(`Erro no teste ${strategy.name}:`, error);
+                results.push({
+                    strategy: strategy.name,
+                    error: error.message,
+                    success: false
+                });
+            }
+        }
+
+        // Resumo dos resultados
+        console.log('\n=== RESUMO DOS TESTES ===');
+        console.log(`Total de testes: ${testStrategies.length}`);
+        console.log(`Sucessos: ${successCount}`);
+        console.log(`Falhas: ${testStrategies.length - successCount}`);
+
+        results.forEach((result, index) => {
+            console.log(`${index + 1}. ${result.strategy}: ${result.success ? '✅' : '❌'}`);
+            if (result.status) console.log(`   Status: ${result.status}, Duração: ${result.duration}ms`);
+            if (result.error) console.log(`   Erro: ${result.error}`);
+        });
+
+        // Mostrar resultado para o usuário
+        if (successCount > 0) {
+            showToast(`Teste concluído! ${successCount}/${testStrategies.length} estratégias funcionaram.`, 'success');
+        } else {
+            showToast('Nenhuma estratégia funcionou. Verifique o console para detalhes.', 'error');
+        }
+
+        // Tentar usar a primeira estratégia que funcionou
+        const workingStrategy = results.find(r => r.success);
+        if (workingStrategy) {
+            console.log(`Usando estratégia que funcionou: ${workingStrategy.strategy}`);
+            showToast(`Estratégia funcional encontrada: ${workingStrategy.strategy}`, 'success');
+        }
+    }
+
+    // Fetch all data - leads and prompts with better error handling
+    async function fetchAllData() {
+        console.log('=== INICIANDO BUSCA DE TODOS OS DADOS ===');
+        showLoading();
+
+        try {
+            // Buscar leads e prompts em paralelo
+            const [leadsResult, promptsResult] = await Promise.allSettled([
+                fetchLeadsData(),
+                fetchPromptsData()
+            ]);
+
+            let hasData = false;
+
+            // Processar resultados dos leads
+            if (leadsResult.status === 'fulfilled') {
+                console.log('✅ Leads carregados com sucesso');
+                hasData = true;
+            } else {
+                console.error('❌ Erro ao carregar leads:', leadsResult.reason);
+                showToast('Erro ao carregar leads: ' + leadsResult.reason.message, 'error');
+            }
+
+            // Processar resultados dos prompts
+            if (promptsResult.status === 'fulfilled') {
+                console.log('✅ Prompts carregados com sucesso');
+                hasData = true;
+            } else {
+                console.error('❌ Erro ao carregar prompts:', promptsResult.reason);
+                showToast('Erro ao carregar prompts: ' + promptsResult.reason.message, 'error');
+            }
+
+            // Se pelo menos um dos endpoints funcionou, mostrar o dashboard
+            if (hasData) {
+                updateDashboard();
+                updateAgendamentos();
+                updatePromptsDisplay();
+                hideLoading();
+                updateLastUpdateTime();
+            } else {
+                // Se ambos falharam, mostrar erro
+                throw new Error('Falha ao carregar dados de ambos os endpoints');
+            }
+
+            console.log('=== BUSCA DE DADOS CONCLUÍDA ===');
+
+        } catch (error) {
+            console.error('Erro geral ao buscar dados:', error);
+            showError(error.message);
+        }
+    }
+
+    // Fetch leads data with enhanced error handling
+    async function fetchLeadsData() {
+        console.log('=== BUSCANDO LEADS ===');
+        console.log('URL:', API_URL);
+        
+        let response;
+        try {
+            response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    timestamp: new Date().toISOString()
+                })
+            });
+
+            console.log('Status da resposta (leads):', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Erro na resposta (leads):', errorText);
+                handleApiError(new Error(`HTTP ${response.status}`), API_URL, response);
+                throw new Error(`Erro na API de leads: ${response.status} - ${errorText.substring(0, 100)}`);
+            }
+
+            const rawData = await response.json();
+            console.log('Dados de leads recebidos:', rawData);
+
+            allLeads = processLeadsData(Array.isArray(rawData) ? rawData : []);
+            filteredLeads = [...allLeads];
+
+            // Filter scheduled leads
+            scheduledLeads = allLeads.filter(lead => lead.data_agendamento && lead.data_agendamento.trim() !== '');
+            filteredScheduledLeads = [...scheduledLeads];
+
+            console.log('Leads processados:', allLeads.length);
+            console.log('Leads agendados:', scheduledLeads.length);
+
+            // Clear selections when data refreshes
+            selectedLeads.clear();
+            updateBulkActions();
+
+            return allLeads;
+
+        } catch (error) {
+            if (response) {
+                handleApiError(error, API_URL, response);
+            } else {
+                handleApiError(error, API_URL);
+            }
+            throw error;
+        }
+    }
+
+    // Fetch prompts data com múltiplas estratégias e melhor tratamento de erro
+    async function fetchPromptsData() {
+        console.log('=== BUSCANDO PROMPTS ===');
+        console.log('URL:', PROMPTS_APIS.CONSULTAR);
+        
+        // Estratégias em ordem de prioridade
+        const strategies = [
+            {
+                name: 'POST padrão',
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ timestamp: new Date().toISOString() })
+            },
+            {
+                name: 'POST simples',
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            },
+            {
+                name: 'GET simples',
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            },
+            {
+                name: 'POST sem headers',
+                method: 'POST',
+                headers: {},
+                body: JSON.stringify({ action: 'consultar' })
+            }
+        ];
+
+        let lastError = null;
+        let lastResponse = null;
+        
+        for (const strategy of strategies) {
+            try {
+                console.log(`Tentando estratégia: ${strategy.name}`);
+                
+                const options = {
+                    method: strategy.method,
+                    headers: {
+                        'Accept': 'application/json',
+                        'User-Agent': 'Dashboard-Leads/1.0',
+                        ...strategy.headers
+                    }
+                };
+
+                if (strategy.body && strategy.method !== 'GET') {
+                    options.body = strategy.body;
+                }
+
+                console.log('Opções da requisição:', options);
+
+                const response = await fetch(PROMPTS_APIS.CONSULTAR, options);
+                lastResponse = response;
+                console.log(`Status da resposta (${strategy.name}):`, response.status);
+
+                if (response.ok) {
+                    const rawData = await response.json();
+                    console.log('Dados de prompts recebidos:', rawData);
+                    
+                    // Processar os dados recebidos
+                    let promptsArray = [];
+                    if (Array.isArray(rawData)) {
+                        promptsArray = rawData;
+                    } else if (rawData && Array.isArray(rawData.data)) {
+                        promptsArray = rawData.data;
+                    } else if (rawData && typeof rawData === 'object') {
+                        promptsArray = [rawData];
+                    }
+                    
+                    allPrompts = promptsArray;
+                    filteredPrompts = [...allPrompts];
+                    
+                    console.log(`✅ Prompts carregados com sucesso usando ${strategy.name}:`, allPrompts.length);
+                    return allPrompts;
+                }
+
+                const errorText = await response.text();
+                lastError = new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+                
+            } catch (error) {
+                console.error(`Erro na estratégia ${strategy.name}:`, error);
+                lastError = error;
+                continue;
+            }
+        }
+        
+        // Se chegou aqui, todas as estratégias falharam
+        console.error('Todas as estratégias falharam. Último erro:', lastError);
+        
+        if (lastResponse) {
+            handleApiError(lastError, PROMPTS_APIS.CONSULTAR, lastResponse);
+        } else {
+            handleApiError(lastError, PROMPTS_APIS.CONSULTAR);
+        }
+        
+        allPrompts = [];
+        filteredPrompts = [];
+        throw lastError || new Error('Não foi possível conectar ao endpoint de prompts');
+    }
+
+    // Prompt Management Functions
+    async function togglePromptStatus(promptId) {
+        const prompt = allPrompts.find(p => p.id === promptId);
+        if (!prompt) return;
+
+        const newStatus = prompt.status === 'ativo' ? 'inativo' : 'ativo';
+        
+        try {
+            showToast(`${newStatus === 'ativo' ? 'Ativando' : 'Desativando'} prompt...`, 'warning');
+            
+            const requestData = {
+                promptId: promptId,
+                status: newStatus,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.log('=== ALTERANDO STATUS ===');
+            console.log('URL:', PROMPTS_APIS.EDITAR);
+            console.log('Dados enviados:', requestData);
+            
+            const response = await fetch(PROMPTS_APIS.EDITAR, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            console.log('Status da resposta:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Erro na resposta:', errorText);
+                throw new Error(`Erro na API: ${response.status} - ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log('Resposta da API:', result);
+
+            // Update local data
+            prompt.status = newStatus;
+            updatePromptsDisplay();
+            
+            showToast(`Prompt ${newStatus === 'ativo' ? 'ativado' : 'desativado'} com sucesso!`, 'success');
+
+        } catch (error) {
+            console.error('Erro ao alterar status do prompt:', error);
+            showToast('Erro ao alterar status do prompt: ' + error.message, 'error');
+        }
+    }
+
+    async function deletePrompt(promptId) {
+        const prompt = allPrompts.find(p => p.id === promptId);
+        if (!prompt) return;
+
+        if (!confirm(`Tem certeza que deseja excluir o prompt "${prompt.titulo}"?\n\nEsta ação não pode ser desfeita.`)) {
+            return;
+        }
+
+        try {
+            showToast('Excluindo prompt...', 'warning');
+            
+            const requestData = {
+                promptId: promptId,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.log('=== EXCLUINDO PROMPT ===');
+            console.log('URL:', PROMPTS_APIS.DELETAR);
+            console.log('Dados enviados:', requestData);
+            
+            const response = await fetch(PROMPTS_APIS.DELETAR, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            console.log('Status da resposta:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Erro na resposta:', errorText);
+                throw new Error(`Erro na API: ${response.status} - ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log('Resposta da API:', result);
+
+            // Remove from local data
+            allPrompts = allPrompts.filter(p => p.id !== promptId);
+            filteredPrompts = filteredPrompts.filter(p => p.id !== promptId);
+            
+            updatePromptsDisplay();
+            showToast('Prompt excluído com sucesso!', 'success');
+
+        } catch (error) {
+            console.error('Erro ao excluir prompt:', error);
+            showToast('Erro ao excluir prompt: ' + error.message, 'error');
+        }
+    }
+
+    async function savePrompt(event) {
+        event.preventDefault();
+
+        const promptId = document.getElementById('promptId').value;
+        const isEditing = !!promptId;
+        
+        const promptData = {
+            titulo: document.getElementById('promptTitulo').value.trim(),
+            categoria: document.getElementById('promptCategoria').value,
+            descricao: document.getElementById('promptDescricao').value.trim(),
+            conteudo: document.getElementById('promptConteudo').value.trim(),
+            status: document.getElementById('promptStatus').value,
+            prioridade: document.getElementById('promptPrioridade').value,
+            timestamp: new Date().toISOString()
+        };
+
+        if (!promptData.titulo || !promptData.conteudo) {
+            showToast('Título e conteúdo são obrigatórios', 'error');
+            return;
+        }
+
+        try {
+            showToast(isEditing ? 'Salvando alterações...' : 'Criando prompt...', 'warning');
+            
+            let apiUrl, requestData;
+            
+            if (isEditing) {
+                apiUrl = PROMPTS_APIS.EDITAR;
+                requestData = {
+                    promptId: parseInt(promptId),
+                    ...promptData
+                };
+            } else {
+                apiUrl = PROMPTS_APIS.CRIAR;
+                requestData = promptData;
+            }
+
+            console.log('=== SALVANDO PROMPT ===');
+            console.log('URL:', apiUrl);
+            console.log('Dados enviados:', requestData);
+            
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            console.log('Status da resposta:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Erro na resposta:', errorText);
+                throw new Error(`Erro na API: ${response.status} - ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log('Resposta da API:', result);
+            
+            if (isEditing) {
+                // Update existing prompt
+                const index = allPrompts.findIndex(p => p.id === parseInt(promptId));
+                if (index !== -1) {
+                    allPrompts[index] = { 
+                        ...allPrompts[index], 
+                        ...promptData 
+                    };
+                }
+            } else {
+                // Add new prompt
+                const newPrompt = {
+                    id: result.id || Date.now(),
+                    ...promptData,
+                    created_at: new Date().toISOString()
+                };
+                allPrompts.unshift(newPrompt);
+            }
+
+            applyPromptFilters();
+            updatePromptsDisplay();
+            closePromptModal();
+            
+            showToast(isEditing ? 'Prompt atualizado com sucesso!' : 'Prompt criado com sucesso!', 'success');
+
+        } catch (error) {
+            console.error('Erro ao salvar prompt:', error);
+            showToast('Erro ao salvar prompt: ' + error.message, 'error');
+        }
+    }
+
+    function updatePromptsDisplay() {
+        updatePromptsSummary();
+        updatePromptsGrid();
+        updatePromptFilterResults();
+    }
+
+    function updatePromptsSummary() {
+        const total = allPrompts.length;
+        const active = allPrompts.filter(p => p.status === 'ativo').length;
+        const inactive = allPrompts.filter(p => p.status === 'inativo').length;
+        const highPriority = allPrompts.filter(p => p.prioridade === 'alta').length;
+
+        document.getElementById('promptsTotal').textContent = total;
+        document.getElementById('promptsActive').textContent = active;
+        document.getElementById('promptsInactive').textContent = inactive;
+        document.getElementById('promptsHighPriority').textContent = highPriority;
+    }
+
+    function updatePromptsGrid() {
+        const grid = document.getElementById('promptsGrid');
+        grid.innerHTML = '';
+
+        if (filteredPrompts.length === 0) {
+            grid.innerHTML = `
+                <div class="col-span-full card p-8 text-center">
+                    <div class="text-gray-400 text-4xl mb-4">🤖</div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Nenhum prompt encontrado</h3>
+                    <p class="text-gray-500 mb-4">Crie seu primeiro prompt para começar.</p>
+                    <button onclick="openPromptModal()" class="btn btn-primary">
+                        ➕ Criar Primeiro Prompt
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        // Sort prompts: active first, then by priority
+        const sortedPrompts = [...filteredPrompts].sort((a, b) => {
+            if (a.status !== b.status) {
+                return a.status === 'ativo' ? -1 : 1;
+            }
+            const priorityOrder = { 'alta': 0, 'media': 1, 'baixa': 2 };
+            return priorityOrder[a.prioridade] - priorityOrder[b.prioridade];
+        });
+
+        sortedPrompts.forEach(prompt => {
+            const card = createPromptCard(prompt);
+            grid.appendChild(card);
+        });
+    }
+
+    function createPromptCard(prompt) {
+        const card = document.createElement('div');
+        const priorityClass = `priority-${prompt.prioridade}`;
+        const statusClass = prompt.status === 'inativo' ? 'inactive' : '';
+        
+        card.className = `card p-6 prompt-card ${priorityClass} ${statusClass}`;
+        
+        const variables = extractVariables(prompt.conteudo || '');
+        const preview = truncateText(prompt.conteudo || '', 150);
+        
+        card.innerHTML = `
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-1">
+                        ${prompt.titulo || 'Sem título'}
+                    </h3>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="badge ${prompt.status === 'ativo' ? 'badge-success' : 'badge-secondary'}">
+                            ${prompt.status === 'ativo' ? '✅ Ativo' : '⏸️ Inativo'}
+                        </span>
+                        <span class="badge badge-outline">${prompt.categoria || 'Sem categoria'}</span>
+                        <span class="badge ${getPriorityBadgeClass(prompt.prioridade)}">
+                            ${getPriorityText(prompt.prioridade)}
+                        </span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button onclick="togglePromptStatus(${prompt.id})"
+                             class="btn btn-outline btn-sm"
+                             title="${prompt.status === 'ativo' ? 'Desativar' : 'Ativar'}">
+                        ${prompt.status === 'ativo' ? '⏸️' : '▶️'}
+                    </button>
+                    <button onclick="duplicatePrompt(${prompt.id})"
+                             class="btn btn-outline btn-sm"
+                             title="Duplicar">
+                        📋
+                    </button>
+                    <button onclick="editPrompt(${prompt.id})"
+                             class="btn btn-outline btn-sm"
+                             title="Editar">
+                        ✏️
+                    </button>
+                    <button onclick="deletePrompt(${prompt.id})"
+                             class="btn btn-danger btn-sm"
+                             title="Excluir">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+            
+            ${prompt.descricao ? `
+                <p class="text-sm text-gray-600 mb-3">${prompt.descricao}</p>
+            ` : ''}
+            
+            <div class="prompt-content mb-3" id="promptContent${prompt.id}">
+                <div class="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
+                    ${highlightVariables(preview)}
+                    ${(prompt.conteudo || '').length > 150 ? `
+                        <button onclick="togglePromptContent(${prompt.id})"
+                                 class="text-blue-600 hover:text-blue-800 ml-2">
+                            Ver mais...
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-between text-xs text-gray-500">
+                <div class="flex items-center gap-4">
+                    <span>${(prompt.conteudo || '').length} caracteres</span>
+                    <span>${variables.length} variáveis</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="copyPromptContent(${prompt.id})"
+                             class="text-blue-600 hover:text-blue-800"
+                             title="Copiar conteúdo">
+                        📋 Copiar
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        return card;
+    }
+
+    function getPriorityBadgeClass(priority) {
+        const classes = {
+            'alta': 'badge-destructive',
+            'media': 'badge-warning',
+            'baixa': 'badge-success'
+        };
+        return classes[priority] || 'badge-secondary';
+    }
+
+    function getPriorityText(priority) {
+        const texts = {
+            'alta': '🔥 Alta',
+            'media': '⚡ Média',
+            'baixa': '🌱 Baixa'
+        };
+        return texts[priority] || 'Sem prioridade';
+    }
+
+    function extractVariables(content) {
+        const regex = /\{([^}]+)\}/g;
+        const variables = [];
+        let match;
+        while ((match = regex.exec(content)) !== null) {
+            if (!variables.includes(match[1])) {
+                variables.push(match[1]);
+            }
+        }
+        return variables;
+    }
+
+    function highlightVariables(content) {
+        return content.replace(/\{([^}]+)\}/g, '<span class="prompt-variable">{$1}</span>');
+    }
+
+    function truncateText(text, maxLength) {
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + '...';
+    }
+
+    function togglePromptContent(promptId) {
+        const prompt = allPrompts.find(p => p.id === promptId);
+        if (!prompt) return;
+
+        const contentDiv = document.getElementById(`promptContent${promptId}`);
+        const isExpanded = contentDiv.querySelector('.prompt-content') && contentDiv.querySelector('.prompt-content').classList.contains('expanded');
+        
+        if (isExpanded) {
+            contentDiv.innerHTML = `
+                <div class="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
+                    ${highlightVariables(truncateText(prompt.conteudo || '', 150))}
+                    <button onclick="togglePromptContent(${promptId})"
+                             class="text-blue-600 hover:text-blue-800 ml-2">
+                        Ver mais...
+                    </button>
+                </div>
+            `;
+        } else {
+            contentDiv.innerHTML = `
+                <div class="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg prompt-content expanded">
+                    ${highlightVariables(prompt.conteudo || '')}
+                    <button onclick="togglePromptContent(${promptId})"
+                             class="text-blue-600 hover:text-blue-800 ml-2">
+                        Ver menos
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    function duplicatePrompt(promptId) {
+        const prompt = allPrompts.find(p => p.id === promptId);
+        if (!prompt) return;
+
+        // Open modal with duplicated data
+        openPromptModal();
+        document.getElementById('promptTitulo').value = `${prompt.titulo} (Cópia)`;
+        document.getElementById('promptCategoria').value = prompt.categoria || 'Atendimento';
+        document.getElementById('promptDescricao').value = prompt.descricao || '';
+        document.getElementById('promptConteudo').value = prompt.conteudo || '';
+        document.getElementById('promptStatus').value = 'inativo'; // Start as inactive
+        document.getElementById('promptPrioridade').value = prompt.prioridade || 'media';
+        
+        updatePromptStats();
+    }
+
+    function editPrompt(promptId) {
+        const prompt = allPrompts.find(p => p.id === promptId);
+        if (!prompt) return;
+
+        currentEditingPrompt = { ...prompt };
+        
+        // Open modal with existing data
+        document.getElementById('promptModalTitle').textContent = 'Editar Prompt';
+        document.getElementById('promptSaveText').textContent = 'Salvar Alterações';
+        document.getElementById('promptId').value = prompt.id;
+        document.getElementById('promptTitulo').value = prompt.titulo || '';
+        document.getElementById('promptCategoria').value = prompt.categoria || 'Atendimento';
+        document.getElementById('promptDescricao').value = prompt.descricao || '';
+        document.getElementById('promptConteudo').value = prompt.conteudo || '';
+        document.getElementById('promptStatus').value = prompt.status || 'ativo';
+        document.getElementById('promptPrioridade').value = prompt.prioridade || 'media';
+        
+        updatePromptStats();
+        document.getElementById('promptModal').classList.add('show');
+    }
+
+    function copyPromptContent(promptId) {
+        const prompt = allPrompts.find(p => p.id === promptId);
+        if (!prompt || !prompt.conteudo) return;
+
+        navigator.clipboard.writeText(prompt.conteudo).then(() => {
+            showToast('Conteúdo copiado para a área de transferência!', 'success');
+        }).catch(() => {
+            showToast('Erro ao copiar conteúdo', 'error');
+        });
+    }
+
+    function openPromptModal() {
+        currentEditingPrompt = null;
+        document.getElementById('promptModalTitle').textContent = 'Novo Prompt';
+        document.getElementById('promptSaveText').textContent = 'Salvar Prompt';
+        document.getElementById('promptForm').reset();
+        document.getElementById('promptId').value = '';
+        document.getElementById('promptCategoria').value = 'Atendimento';
+        document.getElementById('promptStatus').value = 'ativo';
+        document.getElementById('promptPrioridade').value = 'media';
+        updatePromptStats();
+        document.getElementById('promptModal').classList.add('show');
+    }
+
+    function closePromptModal() {
+        document.getElementById('promptModal').classList.remove('show');
+        currentEditingPrompt = null;
+    }
+
+    function updatePromptStats() {
+        const content = document.getElementById('promptConteudo').value;
+        const charCount = content.length;
+        const variables = extractVariables(content);
+        
+        document.getElementById('promptCharCount').textContent = charCount;
+        document.getElementById('promptVariableCount').textContent = variables.length;
+    }
+
+    function applyPromptFilters() {
+        const searchTerm = document.getElementById('promptSearchInput').value.toLowerCase();
+        const categoryFilter = document.getElementById('promptCategoryFilter').value;
+        const statusFilter = document.getElementById('promptStatusFilter').value;
+
+        filteredPrompts = allPrompts.filter(prompt => {
+            const matchesSearch = !searchTerm ||
+                prompt.titulo?.toLowerCase().includes(searchTerm) ||
+                prompt.conteudo?.toLowerCase().includes(searchTerm) ||
+                prompt.descricao?.toLowerCase().includes(searchTerm);
+
+            const matchesCategory = categoryFilter === 'all' || prompt.categoria === categoryFilter;
+            const matchesStatus = statusFilter === 'all' || prompt.status === statusFilter;
+
+            return matchesSearch && matchesCategory && matchesStatus;
+        });
+
+        updatePromptsGrid();
+        updatePromptFilterResults();
+    }
+
+    function clearPromptFilters() {
+        document.getElementById('promptSearchInput').value = '';
+        document.getElementById('promptCategoryFilter').value = 'all';
+        document.getElementById('promptStatusFilter').value = 'all';
+        applyPromptFilters();
+    }
+
+    function updatePromptFilterResults() {
+        document.getElementById('promptFilterResults').textContent =
+            `Mostrando ${filteredPrompts.length} de ${allPrompts.length} prompts`;
+    }
+
+    function exportPrompts() {
+        if (allPrompts.length === 0) {
+            showToast('Não há prompts para exportar', 'warning');
+            return;
+        }
+
+        const dataStr = JSON.stringify(allPrompts, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `prompts-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        showToast('Prompts exportados com sucesso!', 'success');
+    }
+
+    // Show toast notification
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        document.getElementById('toastContainer').appendChild(toast);
+
+        // Show toast
+        setTimeout(() => toast.classList.add('show'), 100);
+
+        // Hide and remove toast
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // Delete single lead
+    function deleteLead(leadId, leadName) {
+        const lead = allLeads.find(l => l.id === leadId);
+        if (!lead) {
+            showToast('Lead não encontrado', 'error');
+            return;
+        }
+
+        // Show confirmation modal
+        document.getElementById('deleteModalContent').innerHTML = `
+            <p class="text-gray-600 mb-4">
+                Tem certeza que deseja excluir o lead:
+            </p>
+            <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                <p class="font-medium">${leadName || 'Nome não informado'}</p>
+                <p class="text-sm text-gray-600">ID: ${leadId}</p>
+                ${lead.telefone ? `<p class="text-sm text-gray-600">Telefone: ${formatPhone(lead.telefone)}</p>` : ''}
+                ${lead.email ? `<p class="text-sm text-gray-600">Email: ${lead.email}</p>` : ''}
+            </div>
+            <p class="text-red-600 text-sm">
+                ⚠️ Esta ação não pode ser desfeita.
+            </p>
+        `;
+
+        document.getElementById('confirmDeleteBtn').onclick = () => confirmDelete([lead], 'single');
+        document.getElementById('deleteModal').classList.add('show');
+    }
+
+    // Bulk delete leads
+    function bulkDeleteLeads() {
+        if (selectedLeads.size === 0) {
+            showToast('Nenhum lead selecionado', 'warning');
+            return;
+        }
+
+        const leadsToDelete = Array.from(selectedLeads).map(id =>
+            allLeads.find(lead => lead.id === parseInt(id))
+        ).filter(Boolean);
+
+        // Show confirmation modal
+        document.getElementById('deleteModalContent').innerHTML = `
+            <p class="text-gray-600 mb-4">
+                Tem certeza que deseja excluir <strong>${leadsToDelete.length} leads</strong>?
+            </p>
+            <div class="bg-gray-50 p-4 rounded-lg mb-4 max-h-40 overflow-y-auto">
+                ${leadsToDelete.map(lead => `
+                    <div class="flex justify-between items-center py-1 border-b border-gray-200 last:border-b-0">
+                        <span class="font-medium">${lead.nomewpp || 'Nome não informado'}</span>
+                        <span class="text-sm text-gray-500">ID: ${lead.id}</span>
+                    </div>
+                `).join('')}
+            </div>
+            <p class="text-red-600 text-sm">
+                ⚠️ Esta ação não pode ser desfeita.
+            </p>
+        `;
+
+        document.getElementById('confirmDeleteBtn').onclick = () => confirmDelete(leadsToDelete, 'bulk');
+        document.getElementById('deleteModal').classList.add('show');
+    }
+
+    // Delete all leads
+    function deleteAllLeads() {
+        if (allLeads.length === 0) {
+            showToast('Não há leads para excluir', 'warning');
+            return;
+        }
+
+        // Show confirmation modal
+        document.getElementById('deleteModalContent').innerHTML = `
+            <div class="text-center mb-4">
+                <div class="text-red-500 text-6xl mb-4">⚠️</div>
+                <h4 class="text-xl font-bold text-red-600 mb-2">ATENÇÃO MÁXIMA!</h4>
+            </div>
+            <p class="text-gray-600 mb-4">
+                Você está prestes a excluir <strong>TODOS OS ${allLeads.length} LEADS</strong> do sistema!
+            </p>
+            <div class="bg-red-50 border border-red-200 p-4 rounded-lg mb-4">
+                <p class="text-red-800 font-medium mb-2">Esta ação irá:</p>
+                <ul class="text-red-700 text-sm space-y-1 ml-4">
+                    <li>• Excluir permanentemente todos os leads</li>
+                    <li>• Remover todos os agendamentos</li>
+                    <li>• Apagar todo o histórico de contatos</li>
+                    <li>• Zerar todas as métricas do dashboard</li>
+                </ul>
+            </div>
+            <p class="text-red-600 text-sm font-bold text-center">
+                🚨 ESTA AÇÃO É IRREVERSÍVEL! 🚨
+            </p>
+            <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p class="text-yellow-800 text-sm">
+                    <strong>Dica:</strong> Considere fazer um backup dos dados antes de prosseguir.
+                </p>
+            </div>
+        `;
+
+        document.getElementById('confirmDeleteBtn').onclick = () => confirmDelete(allLeads, 'all');
+        document.getElementById('confirmDeleteBtn').textContent = '🗑️ SIM, EXCLUIR TUDO';
+        document.getElementById('deleteModal').classList.add('show');
+    }
+
+    // Confirm delete
+    async function confirmDelete(leadsToDelete, deleteType) {
+        closeDeleteModal();
+
+        try {
+            const deleteTypeText = deleteType === 'all' ? 'Excluindo TODOS os leads...' :
+                                  deleteType === 'bulk' ? 'Excluindo leads selecionados...' :
+                                  'Excluindo lead...';
+            showToast(deleteTypeText, 'warning');
+
+            // Prepare data with specific titles for n8n switch
+            let titulo;
+            let deleteData;
+
+            switch(deleteType) {
+                case 'all':
+                    titulo = "excluir TODOS os Leads";
+                    deleteData = { titulo: titulo };
+                    break;
+                case 'bulk':
+                    titulo = "excluir leads";
+                    deleteData = {
+                        titulo: titulo,
+                        tipo: deleteType,
+                        quantidade: leadsToDelete.length,
+                        timestamp: new Date().toISOString(),
+                        leads: leadsToDelete
+                    };
+                    break;
+                case 'single':
+                    titulo = "excluir leads";
+                    deleteData = {
+                        titulo: titulo,
+                        tipo: deleteType,
+                        quantidade: leadsToDelete.length,
+                        timestamp: new Date().toISOString(),
+                        leads: leadsToDelete
+                    };
+                    break;
+                default:
+                    titulo = "excluir leads";
+                    deleteData = {
+                        titulo: titulo,
+                        tipo: deleteType,
+                        quantidade: leadsToDelete.length,
+                        timestamp: new Date().toISOString(),
+                        leads: leadsToDelete
+                    };
+            }
+
+            console.log('Enviando dados para exclusão:', deleteData);
+
+            // Send delete request
+            const response = await fetch(DELETE_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(deleteData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erro na API: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log('Resposta da API:', result);
+
+            // Remove deleted leads from local data
+            const deletedIds = leadsToDelete.map(lead => lead.id);
+            allLeads = allLeads.filter(lead => !deletedIds.includes(lead.id));
+            filteredLeads = filteredLeads.filter(lead => !deletedIds.includes(lead.id));
+            scheduledLeads = scheduledLeads.filter(lead => !deletedIds.includes(lead.id));
+            filteredScheduledLeads = filteredScheduledLeads.filter(lead => !deletedIds.includes(lead.id));
+
+            // Clear selections
+            selectedLeads.clear();
+            updateBulkActions();
+
+            // Update dashboard
+            updateDashboard();
+            updateAgendamentos();
+
+            const successMessage = deleteType === 'all' ? 'Todos os leads foram excluídos com sucesso!' :
+                                   deleteType === 'bulk' ? `${leadsToDelete.length} leads excluídos com sucesso!` :
+                                   'Lead excluído com sucesso!';
+            showToast(successMessage, 'success');
+
+            // Reset delete button text
+            document.getElementById('confirmDeleteBtn').textContent = '🗑️ Confirmar Exclusão';
+
+        } catch (error) {
+            console.error('Erro ao excluir leads:', error);
+            showToast('Erro ao excluir leads: ' + error.message, 'error');
+            // Reset delete button text
+            document.getElementById('confirmDeleteBtn').textContent = '🗑️ Confirmar Exclusão';
+        }
+    }
+
+    // Close delete modal
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.remove('show');
+        // Reset delete button text
+        document.getElementById('confirmDeleteBtn').textContent = '🗑️ Confirmar Exclusão';
+    }
+
+    // Open Edit Lead Modal
+    function openEditModal(leadId) {
+        const lead = allLeads.find(l => l.id === leadId);
+        if (!lead) {
+            showToast('Lead não encontrado para edição.', 'error');
+            return;
+        }
+
+        currentEditingLead = { ...lead }; // Store a copy of the original lead
+
+        document.getElementById('editLeadId').value = lead.id;
+        document.getElementById('editNomeWpp').value = lead.nomewpp || '';
+        document.getElementById('editTelefone').value = lead.telefone || '';
+        document.getElementById('editEmail').value = lead.email || '';
+        document.getElementById('editOrigemLead').value = lead.origem_lead || '';
+        document.getElementById('editStatusAtendimento').value = lead.status_atendimento || '';
+        document.getElementById('editEtapaFunil').value = lead.etapa_funil || '';
+        document.getElementById('editPontuacaoLead').value = lead.pontuacao_lead || '';
+
+        // Format date for datetime-local input
+        if (lead.data_agendamento) {
+            const date = new Date(lead.data_agendamento);
+            const formattedDate = date.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
+            document.getElementById('editDataAgendamento').value = formattedDate;
+        } else {
+            document.getElementById('editDataAgendamento').value = '';
+        }
+
+        document.getElementById('editResumoAtendimento').value = lead.resumo_atendimento || '';
+
+        document.getElementById('editLeadModal').classList.add('show');
+    }
+
+    // Close Edit Lead Modal
+    function closeEditModal() {
+        document.getElementById('editLeadModal').classList.remove('show');
+        currentEditingLead = null; // Clear the editing lead
+    }
+
+    // Save Edited Lead
+    async function saveEditedLead(event) {
+        event.preventDefault(); // Prevent default form submission
+
+        if (!currentEditingLead) {
+            showToast('Nenhum lead selecionado para edição.', 'error');
+            return;
+        }
+
+        const leadId = parseInt(document.getElementById('editLeadId').value);
+        const originalLead = { ...currentEditingLead }; // Use the stored original lead
+
+        const updatedFields = {
+            nomewpp: document.getElementById('editNomeWpp').value.trim(),
+            telefone: document.getElementById('editTelefone').value.trim(),
+            email: document.getElementById('editEmail').value.trim(),
+            origem_lead: document.getElementById('editOrigemLead').value,
+            status_atendimento: document.getElementById('editStatusAtendimento').value,
+            etapa_funil: document.getElementById('editEtapaFunil').value,
+            pontuacao_lead: parseInt(document.getElementById('editPontuacaoLead').value) || null,
+            data_agendamento: document.getElementById('editDataAgendamento').value || null,
+            resumo_atendimento: document.getElementById('editResumoAtendimento').value.trim(),
+        };
+
+        // Create the complete updated lead object
+        const leadCompleto = { ...originalLead, ...updatedFields };
+
+        // Determine which fields actually changed
+        const changedFields = {};
+        for (const key in updatedFields) {
+            // Special handling for pontuacao_lead and data_agendamento for comparison
+            let originalValue = originalLead[key];
+            let updatedValue = updatedFields[key];
+
+            if (key === 'pontuacao_lead') {
+                originalValue = originalValue === null ? null : Number(originalValue);
+                updatedValue = updatedValue === null ? null : Number(updatedValue);
+            } else if (key === 'data_agendamento') {
+                // Compare ISO strings or null
+                originalValue = originalValue ? new Date(originalValue).toISOString().slice(0, 16) : null;
+                updatedValue = updatedValue ? new Date(updatedValue).toISOString().slice(0, 16) : null;
+            }
+
+            if (originalValue !== updatedValue) {
+                changedFields[key] = updatedFields[key];
+            }
+        }
+
+        if (Object.keys(changedFields).length === 0) {
+            showToast('Nenhuma alteração detectada.', 'info');
+            closeEditModal();
+            return;
+        }
+
+        try {
+            showToast('Salvando alterações...', 'warning');
+
+            const editData = {
+                titulo: "editar lead",
+                leadId: leadId,
+                dadosOriginais: originalLead,
+                dadosAlterados: changedFields, // Only send changed fields
+                leadCompleto: leadCompleto, // Send the full updated lead
+                timestamp: new Date().toISOString(),
+            };
+
+            console.log('Enviando dados para edição:', editData);
+
+            const response = await fetch(EDIT_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(editData),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Erro na API: ${response.status} - ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log('Resposta da API de edição:', result);
+
+            // Update the lead in local data
+            const index = allLeads.findIndex(l => l.id === leadId);
+            if (index !== -1) {
+                allLeads[index] = processLeadsData([leadCompleto])[0]; // Re-process to ensure consistency
+            }
+
+            // Re-apply filters and update dashboard to reflect changes
+            applyFilters();
+            applyAgendaFilters();
+            updateDashboard();
+            updateAgendamentos();
+
+            showToast('Lead atualizado com sucesso!', 'success');
+            closeEditModal();
+
+        } catch (error) {
+            console.error('Erro ao salvar lead:', error);
+            showToast('Erro ao salvar lead: ' + error.message, 'error');
+        }
+    }
+
+    // Toggle lead selection
+    function toggleLeadSelection(leadId, checkbox) {
+        if (checkbox.checked) {
+            selectedLeads.add(leadId.toString());
+        } else {
+            selectedLeads.delete(leadId.toString());
+        }
+        updateBulkActions();
+        updateSelectAllCheckbox();
+    }
+
+    // Toggle select all
+    function toggleSelectAll() {
+        const headerCheckbox = document.getElementById('headerCheckbox');
+        const checkboxes = document.querySelectorAll('.lead-checkbox');
+
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = headerCheckbox.checked;
+            const leadId = checkbox.getAttribute('data-lead-id');
+            if (headerCheckbox.checked) {
+                selectedLeads.add(leadId);
+            } else {
+                selectedLeads.delete(leadId);
+            }
+        });
+
+        updateBulkActions();
+        updateSelectAllCheckbox();
+    }
+
+    // Select all leads
+    function selectAllLeads() {
+        filteredLeads.forEach(lead => {
+            selectedLeads.add(lead.id.toString());
+        });
+
+        // Update checkboxes
+        document.querySelectorAll('.lead-checkbox').forEach(checkbox => {
+            checkbox.checked = true;
+        });
+
+        updateBulkActions();
+        updateSelectAllCheckbox();
+    }
+
+    // Deselect all leads
+    function deselectAllLeads() {
+        selectedLeads.clear();
+
+        // Update checkboxes
+        document.querySelectorAll('.lead-checkbox, #headerCheckbox, #selectAllCheckbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+
+        updateBulkActions();
+        updateSelectAllCheckbox();
+    }
+
+    // Update bulk actions visibility
+    function updateBulkActions() {
+        const bulkActions = document.getElementById('bulkActions');
+        const selectedCount = document.getElementById('selectedCount');
+
+        if (selectedLeads.size > 0) {
+            bulkActions.classList.add('show');
+            selectedCount.textContent = `${selectedLeads.size} lead(s) selecionado(s)`;
+        } else {
+            bulkActions.classList.remove('show');
+        }
+    }
+
+    // Update select all checkbox state
+    function updateSelectAllCheckbox() {
+        const headerCheckbox = document.getElementById('headerCheckbox');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        const totalVisible = filteredLeads.length;
+        const selectedVisible = filteredLeads.filter(lead =>
+            selectedLeads.has(lead.id.toString())
+        ).length;
+
+        if (selectedVisible === 0) {
+            headerCheckbox.checked = false;
+            selectAllCheckbox.checked = false;
+            headerCheckbox.indeterminate = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (selectedVisible === totalVisible) {
+            headerCheckbox.checked = true;
+            selectAllCheckbox.checked = true;
+            headerCheckbox.indeterminate = false;
+            selectAllCheckbox.indeterminate = false;
+        } else {
+            headerCheckbox.checked = false;
+            selectAllCheckbox.checked = false;
+            headerCheckbox.indeterminate = true;
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+
+    // Process leads data
+    function processLeadsData(rawData) {
+        console.log('Processando dados dos leads...');
+        return rawData.map(lead => ({
+            ...lead,
+            id: Number(lead.id),
+            telefone: cleanPhone(lead.telefone),
+            telefone_limpo: cleanPhoneForComparison(lead.telefone),
+            nomewpp: lead.nomewpp?.trim() || null,
+            email: lead.email?.trim() || null,
+            pontuacao_lead: lead.pontuacao_lead ? Number(lead.pontuacao_lead) : null,
+            agendamento: lead.agendamento === true || lead.agendamento === "true",
+            data_agendamento: lead.data_agendamento || null,
+            is_duplicate: false,
+            duplicate_count: 1
+        }));
+    }
+
+    // Clean phone number
+    function cleanPhone(phone) {
+        if (!phone) return null;
+        return phone.replace(/@s\.whatsapp\.net$/, '').trim();
+    }
+
+    // Clean phone for comparison
+    function cleanPhoneForComparison(phone) {
+        if (!phone) return '';
+        return phone.replace(/@s\.whatsapp\.net$/, '').replace(/\D/g, '');
+    }
+
+    // Format phone for display
+    function formatPhone(phone) {
+        if (!phone) return '-';
+        const cleaned = phone.replace(/\D/g, '');
+        if (cleaned.length === 13 && cleaned.startsWith('55')) {
+            return `+${cleaned.slice(0, 2)} (${cleaned.slice(2, 4)}) ${cleaned.slice(4, 9)}-${cleaned.slice(9)}`;
+        } else if (cleaned.length === 11) {
+            return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+        }
+        return phone;
+    }
+
+    // Validate email
+    function isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    // Get status badge HTML
+    function getStatusBadge(status) {
+        if (!status) return '<span class="badge badge-secondary">Sem status</span>';
+
+        const variants = {
+            'Convertido': 'badge-default',
+            'Em andamento': 'badge-secondary',
+            'Perdido': 'badge-destructive',
+            'Qualificado': 'badge-outline'
+        };
+
+        const variant = variants[status] || 'badge-secondary';
+        return `<span class="badge ${variant}">${status}</span>`;
+    }
+
+    // Format date
+    function formatDate(dateString) {
+        if (!dateString) return '-';
+        try {
+            return new Date(dateString).toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            return 'Data inválida';
+        }
+    }
+
+    // Format date for agenda
+    function formatAgendaDate(dateString) {
+        if (!dateString || dateString.trim() === '') return { date: '-', time: '-', dayName: '-' };
+
+        try {
+            const date = new Date(dateString);
+            // Verificar se a data é válida
+            if (isNaN(date.getTime())) return { date: 'Data inválida', time: '-', dayName: '-' };
+
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            let dayName = date.toLocaleDateString('pt-BR', { weekday: 'long' });
+            if (date.toDateString() === today.toDateString()) {
+                dayName = 'Hoje';
+            } else if (date.toDateString() === tomorrow.toDateString()) {
+                dayName = 'Amanhã';
+            }
+
+            return {
+                date: date.toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                }),
+                time: date.toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }),
+                dayName: dayName.charAt(0).toUpperCase() + dayName.slice(1)
+            };
+        } catch (error) {
+            return { date: 'Data inválida', time: '-', dayName: '-' };
+        }
+    }
+
+    // Get agenda card class
+    function getAgendaCardClass(dateString) {
+        if (!dateString || dateString.trim() === '') return 'agenda-card';
+
+        try {
+            const date = new Date(dateString);
+            // Verificar se a data é válida
+            if (isNaN(date.getTime())) return 'agenda-card';
+
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            today.setHours(0, 0, 0, 0);
+            tomorrow.setHours(0, 0, 0, 0);
+            date.setHours(0, 0, 0, 0);
+
+            if (date.getTime() === today.getTime()) {
+                return 'agenda-card agenda-today';
+            } else if (date.getTime() === tomorrow.getTime()) {
+                return 'agenda-card agenda-tomorrow';
+            } else if (date < today) {
+                return 'agenda-card agenda-past';
+            }
+            return 'agenda-card';
+        } catch (error) {
+            return 'agenda-card';
+        }
+    }
+
+    // Apply filters
+    function applyFilters() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+        const originFilter = document.getElementById('originFilter').value;
+        const dateFilter = document.getElementById('dateFilter').value;
+
+        filteredLeads = allLeads.filter(lead => {
+            // Search filter
+            const matchesSearch = !searchTerm ||
+                lead.nomewpp?.toLowerCase().includes(searchTerm) ||
+                lead.telefone?.includes(searchTerm) ||
+                lead.email?.toLowerCase().includes(searchTerm);
+
+            // Status filter
+            const matchesStatus = statusFilter === 'all' || lead.status_atendimento === statusFilter;
+
+            // Origin filter
+            const matchesOrigin = originFilter === 'all' || lead.origem_lead === originFilter;
+
+            // Date filter
+            const matchesDate = dateFilter === 'all' || filterByDate(lead, dateFilter);
+
+            return matchesSearch && matchesStatus && matchesOrigin && matchesDate;
+        });
+
+        updateLeadsTable();
+        updateFilterResults();
+        updateSelectAllCheckbox();
+    }
+
+    // Apply agenda filters
+    function applyAgendaFilters() {
+        const searchTerm = document.getElementById('agendaSearchInput').value.toLowerCase();
+        const dateFilter = document.getElementById('agendaDateFilter').value;
+        const statusFilter = document.getElementById('agendaStatusFilter').value;
+
+        filteredScheduledLeads = scheduledLeads.filter(lead => {
+            // Search filter
+            const matchesSearch = !searchTerm ||
+                lead.nomewpp?.toLowerCase().includes(searchTerm) ||
+                lead.email?.toLowerCase().includes(searchTerm);
+
+            // Status filter
+            const matchesStatus = statusFilter === 'all' || lead.status_atendimento === statusFilter;
+
+            // Date filter
+            const matchesDate = dateFilter === 'all' || filterAgendaByDate(lead, dateFilter);
+
+            return matchesSearch && matchesStatus && matchesDate;
+        });
+
+        updateAgendaView();
+        updateAgendaFilterResults();
+    }
+
+    // Filter agenda by date
+    function filterAgendaByDate(lead, filter) {
+        if (!lead.data_agendamento || lead.data_agendamento.trim() === '') return false;
+
+        try {
+            const agendaDate = new Date(lead.data_agendamento);
+            // Verificar se a data é válida
+            if (isNaN(agendaDate.getTime())) return false;
+
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            // Set hours to 0 for date comparison
+            const agendaDateOnly = new Date(agendaDate.getFullYear(), agendaDate.getMonth(), agendaDate.getDate());
+            const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const tomorrowOnly = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
+
+            switch (filter) {
+                case 'today':
+                    return agendaDateOnly.getTime() === todayOnly.getTime();
+                case 'tomorrow':
+                    return agendaDateOnly.getTime() === tomorrowOnly.getTime();
+                case 'thisWeek':
+                    const startOfWeek = new Date(today);
+                    startOfWeek.setDate(today.getDate() - today.getDay());
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setDate(startOfWeek.getDate() + 6);
+                    return agendaDateOnly >= startOfWeek && agendaDateOnly <= endOfWeek;
+                case 'nextWeek':
+                    const nextWeekStart = new Date(today);
+                    nextWeekStart.setDate(today.getDate() + (7 - today.getDay()));
+                    const nextWeekEnd = new Date(nextWeekStart);
+                    nextWeekEnd.setDate(nextWeekStart.getDate() + 6);
+                    return agendaDateOnly >= nextWeekStart && agendaDateOnly <= nextWeekEnd;
+                case 'thisMonth':
+                    return agendaDate.getMonth() === today.getMonth() &&
+                            agendaDate.getFullYear() === today.getFullYear();
+                case 'past':
+                    return agendaDateOnly < todayOnly;
+                default:
+                    return true;
+            }
+        } catch (error) {
+            return false;
+        }
+    }
+
+    // Filter by date
+    function filterByDate(lead, filter) {
+        if (!lead.created_at) return false;
+
+        try {
+            const leadDate = new Date(lead.created_at);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            switch (filter) {
+                case 'today':
+                    return leadDate.toDateString() === today.toDateString();
+                case 'yesterday':
+                    return leadDate.toDateString() === yesterday.toDateString();
+                case 'last7Days':
+                    const last7Days = new Date(today);
+                    last7Days.setDate(last7Days.getDate() - 7);
+                    return leadDate >= last7Days;
+                case 'last30Days':
+                    const last30Days = new Date(today);
+                    last30Days.setDate(last30Days.getDate() - 30);
+                    return leadDate >= last30Days;
+                case 'thisMonth':
+                    return leadDate.getMonth() === today.getMonth() &&
+                            leadDate.getFullYear() === today.getFullYear();
+                default:
+                    return true;
+            }
+        } catch (error) {
+            return false;
+        }
+    }
+
+    // Clear filters
+    function clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('statusFilter').value = 'all';
+        document.getElementById('originFilter').value = 'all';
+        document.getElementById('dateFilter').value = 'all';
+        applyFilters();
+    }
+
+    // Clear agenda filters
+    function clearAgendaFilters() {
+        document.getElementById('agendaSearchInput').value = '';
+        document.getElementById('agendaDateFilter').value = 'all';
+        document.getElementById('agendaStatusFilter').value = 'all';
+        applyAgendaFilters();
+    }
+
+    // Toggle agenda view
+    function toggleAgendaView(view) {
+        agendaView = view;
+        const listBtn = document.getElementById('viewListBtn');
+        const calendarBtn = document.getElementById('viewCalendarBtn');
+        const listView = document.getElementById('agendaListView');
+        const calendarView = document.getElementById('agendaCalendarView');
+
+        if (view === 'list') {
+            listBtn.className = 'btn btn-primary';
+            calendarBtn.className = 'btn btn-outline';
+            listView.classList.remove('hidden');
+            calendarView.classList.add('hidden');
+        } else {
+            listBtn.className = 'btn btn-outline';
+            calendarBtn.className = 'btn btn-primary';
+            listView.classList.add('hidden');
+            calendarView.classList.remove('hidden');
+            updateCalendarView();
+        }
+    }
+
+    // Update dashboard
+    function updateDashboard() {
+        updateMetrics();
+        updateCharts();
+        updateLeadsTable();
+        updateFilterResults();
+    }
+
+    // Update agendamentos
+    function updateAgendamentos() {
+        updateAgendaSummary();
+        updateAgendaView();
+        updateAgendaFilterResults();
+    }
+
+    // Update agenda summary
+    function updateAgendaSummary() {
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const tomorrowOnly = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
+
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+        const agendaToday = scheduledLeads.filter(lead => {
+            if (!lead.data_agendamento) return false;
+            try {
+                const agendaDate = new Date(lead.data_agendamento);
+                const agendaDateOnly = new Date(agendaDate.getFullYear(), agendaDate.getMonth(), agendaDate.getDate());
+                return agendaDateOnly.getTime() === todayOnly.getTime();
+            } catch (error) {
+                return false;
+            }
+        }).length;
+
+        const agendaTomorrow = scheduledLeads.filter(lead => {
+            if (!lead.data_agendamento) return false;
+            try {
+                const agendaDate = new Date(lead.data_agendamento);
+                const agendaDateOnly = new Date(agendaDate.getFullYear(), agendaDate.getMonth(), agendaDate.getDate());
+                return agendaDateOnly.getTime() === tomorrowOnly.getTime();
+            } catch (error) {
+                return false;
+            }
+        }).length;
+
+        const agendaThisWeek = scheduledLeads.filter(lead => {
+            if (!lead.data_agendamento) return false;
+            try {
+                const agendaDate = new Date(lead.data_agendamento);
+                const agendaDateOnly = new Date(agendaDate.getFullYear(), agendaDate.getMonth(), agendaDate.getDate());
+                return agendaDateOnly >= startOfWeek && agendaDateOnly <= endOfWeek;
+            } catch (error) {
+                return false;
+            }
+        }).length;
+
+        document.getElementById('agendaToday').textContent = agendaToday;
+        document.getElementById('agendaTomorrow').textContent = agendaTomorrow;
+        document.getElementById('agendaThisWeek').textContent = agendaThisWeek;
+        document.getElementById('agendaTotal').textContent = scheduledLeads.length;
+    }
+
+    // Update agenda view
+    function updateAgendaView() {
+        if (agendaView === 'list') {
+            updateAgendaListView();
+        } else {
+            updateCalendarView();
+        }
+    }
+
+    // Update agenda list view
+    function updateAgendaListView() {
+        const container = document.getElementById('agendaListView');
+        container.innerHTML = '';
+
+        if (filteredScheduledLeads.length === 0) {
+            container.innerHTML = `
+                <div class="card p-8 text-center">
+                    <div class="text-gray-400 text-4xl mb-4">📅</div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Nenhum agendamento encontrado</h3>
+                    <p class="text-gray-500">Não há reuniões agendadas com os filtros selecionados.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Sort by date
+        const sortedLeads = [...filteredScheduledLeads].sort((a, b) => {
+            try {
+                const dateA = new Date(a.data_agendamento || 0);
+                const dateB = new Date(b.data_agendamento || 0);
+                return dateA - dateB;
+            } catch (error) {
+                return 0;
+            }
+        });
+
+        sortedLeads.forEach(lead => {
+            const agendaInfo = formatAgendaDate(lead.data_agendamento);
+            const cardClass = getAgendaCardClass(lead.data_agendamento);
+
+            const agendaCard = document.createElement('div');
+            agendaCard.className = `card p-6 ${cardClass}`;
+            agendaCard.innerHTML = `
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <span class="text-blue-600 font-bold text-lg">👤</span>
+                                </div>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="text-lg font-semibold text-gray-900">
+                                    ${lead.nomewpp || 'Nome não informado'}
+                                </h3>
+                                <div class="flex items-center gap-2 mt-1">
+                                    ${getStatusBadge(lead.status_atendimento)}
+                                    ${lead.origem_lead ? `<span class="badge badge-outline">${lead.origem_lead}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 mb-2">📞 Contato</h4>
+                                <div class="space-y-1">
+                                    <p class="text-sm text-gray-600">
+                                        <strong>Telefone:</strong> ${formatPhone(lead.telefone)}
+                                    </p>
+                                    <p class="text-sm text-gray-600">
+                                        <strong>Email:</strong> ${lead.email || 'Não informado'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 mb-2">📊 Informações do Lead</h4>
+                                <div class="space-y-1">
+                                    <p class="text-sm text-gray-600">
+                                        <strong>Etapa:</strong> ${lead.etapa_funil || 'Não informado'}
+                                    </p>
+                                    <p class="text-sm text-gray-600">
+                                        <strong>Pontuação:</strong> ${lead.pontuacao_lead || 'N/A'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        ${lead.resumo_atendimento ? `
+                            <div class="mb-4">
+                                <h4 class="text-sm font-medium text-gray-700 mb-2">📝 Resumo do Atendimento</h4>
+                                <p class="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                                    ${lead.resumo_atendimento}
+                                </p>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="flex-shrink-0 ml-6 text-right">
+                        <div class="mb-2">
+                            <span class="time-badge">${agendaInfo.time}</span>
+                        </div>
+                        <div class="text-sm font-medium text-gray-900 mb-1">
+                            ${agendaInfo.dayName}
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            ${agendaInfo.date}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(agendaCard);
+        });
+    }
+
+    // Update calendar view
+    function updateCalendarView() {
+        const monthNames = [
+            'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        ];
+
+        document.getElementById('currentMonth').textContent =
+            `${monthNames[currentCalendarDate.getMonth()]} ${currentCalendarDate.getFullYear()}`;
+
+        const calendarGrid = document.getElementById('calendarGrid');
+        calendarGrid.innerHTML = '';
+
+        // Add day headers
+        const dayHeaders = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        dayHeaders.forEach(day => {
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'calendar-day text-center font-medium text-gray-700 bg-gray-100';
+            dayHeader.textContent = day;
+            calendarGrid.appendChild(dayHeader);
+        });
+
+        // Get first day of month and number of days
+        const firstDay = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), 1);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+        // Generate calendar days
+        for (let i = 0; i < 42; i++) {
+            const currentDate = new Date(startDate);
+            currentDate.setDate(startDate.getDate() + i);
+
+            const dayElement = document.createElement('div');
+            dayElement.className = 'calendar-day';
+
+            if (currentDate.toDateString() === new Date().toDateString()) {
+                dayElement.classList.add('today');
+            }
+
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'font-medium mb-1';
+            dayNumber.textContent = currentDate.getDate();
+            dayElement.appendChild(dayNumber);
+
+            // Add events for this day
+            const dayEvents = filteredScheduledLeads.filter(lead => {
+                if (!lead.data_agendamento) return false;
+                try {
+                    const eventDate = new Date(lead.data_agendamento);
+                    return eventDate.toDateString() === currentDate.toDateString();
+                } catch (error) {
+                    return false;
+                }
+            });
+
+            dayEvents.forEach(lead => {
+                const eventElement = document.createElement('div');
+                eventElement.className = 'calendar-event';
+                eventElement.textContent = lead.nomewpp || 'Sem nome';
+                eventElement.title = `${lead.nomewpp || 'Sem nome'} - ${formatAgendaDate(lead.data_agendamento).time}`;
+                dayElement.appendChild(eventElement);
+            });
+
+            calendarGrid.appendChild(dayElement);
+        }
+    }
+
+    // Change calendar month
+    function changeMonth(direction) {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + direction);
+        updateCalendarView();
+    }
+
+    // Update agenda filter results
+    function updateAgendaFilterResults() {
+        document.getElementById('agendaFilterResults').textContent =
+            `Mostrando ${filteredScheduledLeads.length} de ${scheduledLeads.length} agendamentos`;
+    }
+
+    // Update metrics
+    function updateMetrics() {
+        const totalLeads = allLeads.length;
+        const convertedLeads = allLeads.filter(lead =>
+            lead.status_atendimento === 'Convertido' || lead.status_atendimento === 'convertido'
+        ).length;
+        const conversionRate = totalLeads > 0 ? ((convertedLeads / totalLeads) * 100).toFixed(1) : '0';
+
+        const withPhone = allLeads.filter(lead => lead.telefone && lead.telefone_limpo.length >= 10).length;
+        const withEmail = allLeads.filter(lead => lead.email && isValidEmail(lead.email)).length;
+
+        // Contar leads que têm data_agendamento preenchida
+        const scheduled = allLeads.filter(lead => lead.data_agendamento && lead.data_agendamento.trim() !== '').length;
+
+        document.getElementById('totalLeads').textContent = totalLeads;
+        document.getElementById('conversionRate').textContent = conversionRate + '%';
+        document.getElementById('conversionText').textContent = `${convertedLeads} de ${totalLeads} leads convertidos`;
+
+        document.getElementById('withPhone').textContent = withPhone;
+        document.getElementById('phonePercentage').textContent = `${totalLeads > 0 ? ((withPhone / totalLeads) * 100).toFixed(1) : 0}% do total`;
+
+        document.getElementById('withEmail').textContent = withEmail;
+        document.getElementById('emailPercentage').textContent = `${totalLeads > 0 ? ((withEmail / totalLeads) * 100).toFixed(1) : 0}% do total`;
+
+        document.getElementById('totalScheduled').textContent = scheduled;
+
+        // Update analytics stats
+        const withBoth = allLeads.filter(lead =>
+            lead.telefone && lead.telefone_limpo.length >= 10 &&
+            lead.email && isValidEmail(lead.email)
+        ).length;
+
+        const withNeither = allLeads.filter(lead =>
+            (!lead.telefone || lead.telefone_limpo.length < 10) &&
+            (!lead.email || !isValidEmail(lead.email))
+        ).length;
+
+        document.getElementById('statsPhone').textContent = withPhone;
+        document.getElementById('statsEmail').textContent = withEmail;
+        document.getElementById('statsBoth').textContent = withBoth;
+        document.getElementById('statsNeither').textContent = withNeither;
+    }
+
+    // Update charts
+    function updateCharts() {
+        updateDailyChart();
+        updateFunnelChart();
+        updateChannelChart();
+        updateContactChart();
+    }
+
+    // Update daily chart
+    function updateDailyChart() {
+        const ctx = document.getElementById('dailyChart').getContext('2d');
+        if (charts.daily) {
+            charts.daily.destroy();
+        }
+
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+            const date = new Date();
+            date.setDate(date.getDate() - (6 - i));
+            return date;
+        });
+
+        const data = last7Days.map(date => {
+            const dateStr = date.toISOString().split('T')[0];
+            const dayLeads = allLeads.filter(lead =>
+                lead.created_at && lead.created_at.startsWith(dateStr)
+            );
+            const dayConversions = dayLeads.filter(lead =>
+                lead.status_atendimento === 'Convertido' || lead.status_atendimento === 'convertido'
+            );
+
+            return {
+                date: date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+                leads: dayLeads.length,
+                conversoes: dayConversions.length
+            };
+        });
+
+        charts.daily = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.date),
+                datasets: [
+                    {
+                        label: 'Leads',
+                        data: data.map(d => d.leads),
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Conversões',
+                        data: data.map(d => d.conversoes),
+                        backgroundColor: '#10b981',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Update funnel chart
+    function updateFunnelChart() {
+        const ctx = document.getElementById('funnelChart').getContext('2d');
+        if (charts.funnel) {
+            charts.funnel.destroy();
+        }
+
+        const etapas = allLeads.reduce((acc, lead) => {
+            const etapa = lead.etapa_funil || 'Sem etapa';
+            acc[etapa] = (acc[etapa] || 0) + 1;
+            return acc;
+        }, {});
+
+        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#22c55e', '#ef4444', '#8b5cf6', '#f97316'];
+        const labels = Object.keys(etapas);
+        const values = Object.values(etapas);
+
+        charts.funnel = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors.slice(0, labels.length),
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Update custom legend
+        const legendContainer = document.getElementById('funnelLegend');
+        legendContainer.innerHTML = '';
+        labels.forEach((label, index) => {
+            const legendItem = document.createElement('div');
+            legendItem.className = 'flex items-center justify-between text-sm';
+            legendItem.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full" style="background-color: ${colors[index]}"></div>
+                    <span>${label}</span>
+                </div>
+                <span class="font-medium">${values[index]}</span>
+            `;
+            legendContainer.appendChild(legendItem);
+        });
+    }
+
+    // Update channel chart
+    function updateChannelChart() {
+        const ctx = document.getElementById('channelChart').getContext('2d');
+        if (charts.channel) {
+            charts.channel.destroy();
+        }
+
+        const channels = allLeads.reduce((acc, lead) => {
+            const canal = lead.canal || lead.origem_lead || 'Não informado';
+            if (!acc[canal]) {
+                acc[canal] = { leads: 0, conversoes: 0 };
+            }
+            acc[canal].leads += 1;
+            if (lead.status_atendimento === 'Convertido' || lead.status_atendimento === 'convertido') {
+                acc[canal].conversoes += 1;
+            }
+            return acc;
+        }, {});
+
+        const channelData = Object.entries(channels).map(([canal, data]) => ({
+            canal,
+            ...data
+        }));
+
+        charts.channel = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: channelData.map(d => d.canal),
+                datasets: [
+                    {
+                        label: 'Leads',
+                        data: channelData.map(d => d.leads),
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Conversões',
+                        data: channelData.map(d => d.conversoes),
+                        backgroundColor: '#10b981',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Update contact chart
+    function updateContactChart() {
+        const ctx = document.getElementById('contactChart').getContext('2d');
+        if (charts.contact) {
+            charts.contact.destroy();
+        }
+
+        const withPhone = allLeads.filter(lead => lead.telefone && lead.telefone_limpo.length >= 10).length;
+        const withEmail = allLeads.filter(lead => lead.email && isValidEmail(lead.email)).length;
+        const withBoth = allLeads.filter(lead =>
+            lead.telefone && lead.telefone_limpo.length >= 10 &&
+            lead.email && isValidEmail(lead.email)
+        ).length;
+        const withNeither = allLeads.filter(lead =>
+            (!lead.telefone || lead.telefone_limpo.length < 10) &&
+            (!lead.email || !isValidEmail(lead.email))
+        ).length;
+
+        charts.contact = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Só Telefone', 'Só Email', 'Ambos', 'Nenhum'],
+                datasets: [{
+                    data: [withPhone - withBoth, withEmail - withBoth, withBoth, withNeither],
+                    backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6', '#ef4444'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    // Update leads table
+    function updateLeadsTable() {
+        const tbody = document.getElementById('leadsTableBody');
+        tbody.innerHTML = '';
+
+        filteredLeads.forEach(lead => {
+            const row = document.createElement('tr');
+            const isSelected = selectedLeads.has(lead.id.toString());
+
+            row.innerHTML = `
+                <td>
+                    <input type="checkbox" class="checkbox lead-checkbox"
+                            data-lead-id="${lead.id}"
+                            ${isSelected ? 'checked' : ''}
+                           onchange="toggleLeadSelection(${lead.id}, this)">
+                </td>
+                <td class="font-medium">
+                    ${lead.nomewpp || 'Nome não informado'}
+                    ${lead.is_duplicate ? '<span class="text-xs text-orange-600">(mesclado)</span>' : ''}
+                </td>
+                <td>${formatPhone(lead.telefone)}</td>
+                <td class="max-w-xs truncate">${lead.email || '-'}</td>
+                <td><span class="badge badge-outline">${lead.origem_lead || 'N/A'}</span></td>
+                <td>${getStatusBadge(lead.status_atendimento)}</td>
+                <td>${lead.etapa_funil || '-'}</td>
+                <td>
+                    ${lead.pontuacao_lead ? `
+                        <div class="flex items-center gap-2">
+                            <div class="progress-bar w-12">
+                                <div class="progress-fill" style="width: ${lead.pontuacao_lead}%"></div>
+                            </div>
+                            <span class="text-sm">${lead.pontuacao_lead}</span>
+                        </div>
+                    ` : '-'}
+                </td>
+                <td>
+                    ${lead.data_agendamento ? `
+                        <div class="flex items-center gap-1 text-green-600">
+                            📅 <span class="text-sm">${formatDate(lead.data_agendamento)}</span>
+                        </div>
+                    ` : '<span class="text-gray-500">-</span>'}
+                </td>
+                <td>
+                    ${lead.is_duplicate ?
+                        `<span class="badge badge-outline text-orange-600">${lead.duplicate_count}x</span>` :
+                        '<span class="badge badge-secondary">Único</span>'
+                    }
+                </td>
+                <td>
+                    <div class="flex gap-1">
+                        <button onclick="openEditModal(${lead.id})"
+                                 class="btn btn-outline btn-sm"
+                                 title="Editar lead">
+                            ✏️
+                        </button>
+                        <button onclick="deleteLead(${lead.id}, '${(lead.nomewpp || 'Nome não informado').replace(/'/g, "\\'")}')"
+                                 class="btn btn-danger btn-sm"
+                                 title="Excluir lead">
+                            🗑️
+                        </button>
+                    </div>
+                </td>
+            `;
+
+            tbody.appendChild(row);
+        });
+
+        updateSelectAllCheckbox();
+    }
+
+    // Update filter results
+    function updateFilterResults() {
+        document.getElementById('filterResults').textContent =
+            `Mostrando ${filteredLeads.length} de ${allLeads.length} leads`;
+    }
+
+    // Show tab
+    function showTab(tabName) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        // Remove active class from all buttons
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // Show selected tab
+        document.getElementById(tabName).classList.add('active');
+
+        // Add active class to clicked button
+        event.target.classList.add('active');
+
+        // Resize charts when tab becomes visible
+        setTimeout(() => {
+            Object.values(charts).forEach(chart => {
+                if (chart && typeof chart.resize === 'function') {
+                    chart.resize();
+                }
+            });
+        }, 100);
+    }
+
+    // Show loading state
+    function showLoading() {
+        document.getElementById('loadingState').classList.remove('hidden');
+        document.getElementById('errorState').classList.add('hidden');
+        document.getElementById('mainContent').classList.add('hidden');
+        const refreshIcon = document.getElementById('refreshIcon');
+        refreshIcon.innerHTML = '<div class="loading-spinner"></div>';
+    }
+
+    // Hide loading state
+    function hideLoading() {
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('errorState').classList.add('hidden');
+        document.getElementById('mainContent').classList.remove('hidden');
+        const refreshIcon = document.getElementById('refreshIcon');
+        refreshIcon.textContent = '🔄';
+    }
+
+    // Show error state
+    function showError(message) {
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('mainContent').classList.add('hidden');
+        document.getElementById('errorState').classList.remove('hidden');
+        document.getElementById('errorMessage').textContent = message;
+        const refreshIcon = document.getElementById('refreshIcon');
+        refreshIcon.textContent = '🔄';
+    }
+
+    // Update last update time
+    function updateLastUpdateTime() {
+        document.getElementById('lastUpdate').textContent =
+            `Última atualização: ${new Date().toLocaleTimeString('pt-BR')}`;
+    }
+
+    // Auto refresh every 5 minutes
+    setInterval(() => {
+        fetchAllData();
+    }, 5 * 60 * 1000);
+</script>
+</body>
+</html>
